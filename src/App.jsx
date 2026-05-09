@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowRight,
@@ -351,6 +351,8 @@ function App() {
   const [wallet, setWallet] = useState(null)
   const [walletModalOpen, setWalletModalOpen] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
+  const stepRefs = useRef([])
+  const touchStartX = useRef(null)
 
   const productionProgress = connected ? 72 : 38
   const proofTime = '2026-05-08 21:44 UTC'
@@ -369,6 +371,22 @@ function App() {
   const goNext = () => goToStep(activeStep + 1)
   const goPrevious = () => goToStep(activeStep - 1)
 
+  const handleTouchStart = (event) => {
+    if (event.target.closest('.workflow-grid-wide')) return
+    touchStartX.current = event.touches[0].clientX
+  }
+
+  const handleTouchEnd = (event) => {
+    if (touchStartX.current === null) return
+
+    const distance = event.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+
+    if (Math.abs(distance) < 54) return
+    if (distance < 0) goNext()
+    if (distance > 0) goPrevious()
+  }
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (walletModalOpen) return
@@ -379,6 +397,14 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeStep, walletModalOpen])
+
+  useEffect(() => {
+    stepRefs.current[activeStep]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    })
+  }, [activeStep])
 
   const slideHeader = {
     marketplace: [
@@ -839,6 +865,9 @@ function App() {
           {journey.map(([id, label], index) => (
             <button
               key={id}
+              ref={(element) => {
+                stepRefs.current[index] = element
+              }}
               type="button"
               className={`workflow-step ${index === activeStep ? 'active' : ''} ${index < activeStep ? 'complete' : ''}`}
               onClick={() => goToStep(index)}
@@ -866,7 +895,7 @@ function App() {
             </div>
           </div>
 
-          <div className="workflow-slide-wrap">
+          <div className="workflow-slide-wrap" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeJourney[0]}

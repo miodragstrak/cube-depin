@@ -15,6 +15,10 @@ html {
   scroll-behavior: smooth;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background:
@@ -1821,7 +1825,7 @@ a {
 
 .workflow-os {
   position: relative;
-  height: 100vh;
+  min-height: 100vh;
   background:
     radial-gradient(circle at 18% 0%, rgba(139, 92, 246, 0.16), transparent 28rem),
     radial-gradient(circle at 86% 18%, rgba(248, 184, 78, 0.08), transparent 22rem),
@@ -1832,7 +1836,7 @@ a {
   position: relative;
   z-index: 10;
   display: grid;
-  height: 100vh;
+  min-height: 100vh;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   padding: 20px clamp(18px, 4vw, 48px);
 }
@@ -1852,6 +1856,12 @@ a {
   grid-template-columns: repeat(6, minmax(110px, 1fr));
   gap: 10px;
   padding: 18px 0 14px;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.workflow-progress::-webkit-scrollbar {
+  display: none;
 }
 
 .workflow-progress-track {
@@ -1877,6 +1887,7 @@ a {
   z-index: 1;
   display: grid;
   min-height: 46px;
+  min-width: 0;
   align-content: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -1958,6 +1969,7 @@ a {
 .workflow-slide-wrap {
   min-height: 0;
   overflow: hidden;
+  touch-action: pan-y pan-x;
 }
 
 .workflow-slide {
@@ -2172,10 +2184,22 @@ a {
 }
 
 @media (max-width: 640px) {
+  body {
+    background:
+      radial-gradient(circle at 22% 0%, rgba(139, 92, 246, 0.18), transparent 20rem),
+      radial-gradient(circle at 90% 18%, rgba(248, 184, 78, 0.1), transparent 18rem),
+      #070313;
+  }
+
+  .workflow-os {
+    overflow-x: hidden;
+  }
+
   .workflow-shell {
     height: auto;
     min-height: 100vh;
-    padding: 14px;
+    grid-template-rows: auto auto auto auto;
+    padding: 12px;
   }
 
   .workflow-topbar,
@@ -2185,19 +2209,53 @@ a {
     flex-direction: column;
   }
 
+  .workflow-topbar {
+    gap: 14px;
+    padding-bottom: 12px;
+  }
+
+  .workflow-topbar > div:first-child {
+    min-width: 0;
+  }
+
+  .brand-mark {
+    height: 40px;
+    width: 40px;
+    border-radius: 8px;
+    padding: 6px;
+  }
+
+  .nav-wallet {
+    min-height: 48px;
+    justify-content: center;
+    width: 100%;
+  }
+
   .workflow-progress {
-    grid-template-columns: repeat(6, minmax(118px, 1fr));
+    display: flex;
+    gap: 8px;
+    margin-inline: -12px;
     overflow-x: auto;
-    padding-bottom: 18px;
+    padding: 12px 12px 16px;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x mandatory;
   }
 
   .workflow-progress-track {
-    left: 8px;
-    right: 8px;
+    display: none;
+  }
+
+  .workflow-step {
+    flex: 0 0 156px;
+    min-height: 56px;
+    padding: 10px 12px;
+    scroll-snap-align: center;
+    white-space: normal;
   }
 
   .workflow-stage {
     overflow: visible;
+    gap: 12px;
   }
 
   .workflow-slide-wrap,
@@ -2205,13 +2263,302 @@ a {
     overflow: visible;
   }
 
+  .workflow-stage-header {
+    gap: 16px;
+    padding: 15px;
+  }
+
+  .section-kicker {
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    margin-bottom: 0.75rem;
+  }
+
+  .workflow-title {
+    font-size: clamp(1.75rem, 11vw, 2.65rem);
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+  }
+
+  .section-copy {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    margin-top: 0.9rem;
+  }
+
+  .wallet-pill {
+    align-items: flex-start;
+    display: grid;
+    font-size: 0.8rem;
+    gap: 8px;
+    width: 100%;
+  }
+
   .workflow-grid,
   .workflow-grid-wide {
     grid-template-columns: 1fr;
   }
 
+  .workflow-grid {
+    gap: 12px;
+  }
+
+  .workflow-grid-wide {
+    display: grid;
+    grid-auto-columns: minmax(82vw, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    margin-inline: -12px;
+    overflow-x: auto;
+    padding: 2px 12px 16px;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .workflow-grid-wide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workflow-grid-wide .product-card {
+    scroll-snap-align: center;
+  }
+
+  .product-card:hover,
+  .selected-card {
+    transform: translateY(-2px);
+  }
+
+  .product-visual {
+    min-height: 210px;
+  }
+
+  .product-card .p-5 {
+    padding: 16px;
+  }
+
+  .product-card h3 {
+    font-size: 1.1rem;
+  }
+
+  .product-card .mt-6 {
+    margin-top: 1rem;
+  }
+
+  .discovery-production-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .component-inspection-panel,
+  .production-discovery-panel,
+  .machine-auth-panel {
+    min-height: unset;
+    padding: 14px;
+  }
+
+  .component-inspection-panel h3,
+  .machine-auth-copy h3,
+  .confirmation-card h3 {
+    font-size: 1.35rem;
+  }
+
+  .component-inspection-visual .product-visual {
+    min-height: 230px;
+  }
+
+  .component-spec-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .component-spec-row strong {
+    text-align: left;
+  }
+
+  .production-discovery-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .production-map {
+    min-height: 330px;
+  }
+
+  .user-location-node {
+    min-width: 132px;
+    padding: 10px 10px 10px 30px;
+  }
+
+  .production-node {
+    min-width: 112px;
+    max-width: 132px;
+    padding: 9px 9px 9px 27px;
+  }
+
+  .production-node strong {
+    font-size: 0.72rem;
+  }
+
+  .production-node em {
+    font-size: 0.62rem;
+  }
+
+  .production-node-list {
+    gap: 10px;
+  }
+
+  .route-established {
+    justify-content: center;
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .node-detail-card {
+    min-height: 112px;
+    padding: 14px 13px 14px 16px;
+  }
+
+  .node-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .machine-auth-scene {
+    min-height: unset;
+  }
+
+  .machine-frame {
+    min-height: 360px;
+  }
+
+  .machine-head {
+    left: 8%;
+    right: 8%;
+    top: 26px;
+    padding: 12px;
+  }
+
+  .machine-window {
+    left: 10%;
+    right: 10%;
+    top: 88px;
+    bottom: 92px;
+  }
+
+  .machine-nfc-tag {
+    right: 50%;
+    top: 154px;
+    min-height: 92px;
+    min-width: 124px;
+    padding: 15px 14px;
+    transform: translateX(50%);
+  }
+
+  .machine-nfc-tag:hover,
+  .machine-nfc-tag.authorized {
+    transform: translateX(50%) translateY(-2px);
+  }
+
+  .machine-base {
+    left: 8%;
+    right: 8%;
+    bottom: 26px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .machine-base strong {
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+  }
+
+  .phone-shell {
+    width: min(100%, 330px);
+    padding: 12px;
+    border-radius: 32px;
+  }
+
+  .phone-notch {
+    top: 13px;
+    height: 19px;
+    width: 96px;
+  }
+
+  .phone-screen {
+    min-height: 500px;
+    border-radius: 24px;
+    padding: 34px 16px 18px;
+  }
+
+  .connect-orb {
+    height: 122px;
+    width: 122px;
+  }
+
+  .dashboard-shell .p-5,
+  .settlement-flow.surface,
+  .confirmation-card {
+    padding: 16px;
+  }
+
+  .metric-card strong {
+    font-size: 1.45rem;
+  }
+
+  .terminal-panel {
+    max-width: 100%;
+  }
+
+  .terminal-panel .font-mono {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .certificate {
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .certificate h3 {
+    font-size: 1.75rem;
+    overflow-wrap: anywhere;
+  }
+
+  .success-ring {
+    height: 92px;
+    width: 92px;
+  }
+
+  .proof-field,
+  .payment-card,
+  .wallet-node,
+  .confirmation-card {
+    padding: 15px;
+  }
+
+  .chain-confirm,
+  .tx-feed-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .payment-line {
+    margin: 22px 0;
+  }
+
   .workflow-control {
+    min-height: 48px;
     width: 100%;
+  }
+
+  .workflow-controls {
+    gap: 10px;
+    padding-top: 12px;
+  }
+
+  .workflow-status {
+    order: -1;
   }
 
   .network-lines {
@@ -2219,11 +2566,96 @@ a {
     width: 190%;
   }
 
-  .hero-panel {
-    margin-bottom: 2rem;
+  .wallet-modal-backdrop {
+    align-items: end;
+    display: flex;
+    padding: 12px;
   }
 
-  .map-chip {
-    padding: 8px 10px;
+  .wallet-modal {
+    width: 100%;
+    border-radius: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .wallet-modal > .flex {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .wallet-close {
+    min-height: 40px;
+  }
+
+  .wallet-option {
+    grid-template-columns: auto 1fr;
+    min-height: 78px;
+    padding: 14px;
+  }
+
+  .wallet-option small {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .workflow-shell {
+    height: auto;
+    min-height: 100vh;
+    grid-template-rows: auto auto auto auto;
+    padding: 18px;
+  }
+
+  .workflow-progress {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .workflow-progress-track {
+    display: none;
+  }
+
+  .workflow-step {
+    flex: 1 0 148px;
+    scroll-snap-align: center;
+  }
+
+  .workflow-stage,
+  .workflow-slide-wrap,
+  .workflow-slide {
+    overflow: visible;
+  }
+
+  .workflow-stage-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workflow-grid-wide {
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .workflow-grid-wide .product-card {
+    scroll-snap-align: center;
+  }
+
+  .discovery-production-grid,
+  .production-discovery-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .component-inspection-panel,
+  .production-discovery-panel {
+    min-height: unset;
+  }
+
+  .production-map {
+    min-height: 420px;
   }
 }
