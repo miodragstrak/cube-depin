@@ -6,18 +6,16 @@ import {
   Box,
   CheckCircle2,
   CircleDollarSign,
-  Clock,
-  Coins,
   Gauge,
-  MapPin,
+  Image,
   Radio,
-  ScanLine,
+  Ruler,
+  Sparkles,
   SmartphoneNfc,
   Terminal,
   Timer,
+  UploadCloud,
   Wallet,
-  Wifi,
-  Zap,
 } from 'lucide-react'
 import materializeLogo from './assets/materialize-logo.jpg'
 import './App.css'
@@ -121,7 +119,7 @@ const machines = [
     load: '76%',
     position: { left: '48%', top: '67%' },
     discoveryPosition: { left: '58%', top: '53%' },
-    nearest: '2.7 km',
+    nearest: '0.7 km',
     materialCompatibility: 'Carbon-filled PA12',
     productionTime: '3h 05m',
   },
@@ -145,12 +143,46 @@ const machines = [
 const gcodeLines = [
   'G21 ; metric units',
   'G90 ; absolute positioning',
-  'M104 S215 ; set tool temperature',
-  'G1 X42.8 Y18.4 F1800',
-  'G1 Z0.24 E0.0184',
-  'G1 X86.2 Y44.1 E0.0931',
-  'M106 S180 ; cooling channel',
-  'G1 X108.6 Y72.7 E0.1420',
+  'M82 ; absolute extrusion mode',
+  'M104 S218 ; set tool temperature',
+  'M140 S72 ; set bed temperature',
+  'M190 S72 ; wait for bed',
+  'M109 S218 ; wait for tool',
+  'G28 ; home all axes',
+  'G92 E0',
+  'G1 Z0.240 F900',
+  ...Array.from({ length: 64 }, (_, index) => {
+    const layer = Math.floor(index / 8) + 1
+    const x = (36 + ((index * 7.41) % 82)).toFixed(2)
+    const y = (24 + ((index * 5.83) % 78)).toFixed(2)
+    const z = (0.24 + layer * 0.18).toFixed(2)
+    const e = (0.018 + index * 0.037).toFixed(4)
+    const feed = index % 6 === 0 ? 1320 : 1860
+
+    if (index % 8 === 0) return `; LAYER ${String(layer).padStart(2, '0')} adaptive connector wall`
+    if (index % 8 === 1) return `G1 Z${z} F900 ; layer height compensation`
+    if (index % 8 === 2) return `G1 X${x} Y${y} E${e} F${feed} ; outer toolpath`
+    if (index % 8 === 3) return `G1 X${(Number(x) + 8.6).toFixed(2)} Y${(Number(y) + 3.4).toFixed(2)} E${(Number(e) + 0.026).toFixed(4)} F${feed}`
+    if (index % 8 === 4) return `G1 X${(Number(x) + 2.8).toFixed(2)} Y${(Number(y) + 11.2).toFixed(2)} E${(Number(e) + 0.044).toFixed(4)} F1680`
+    if (index % 8 === 5) return `G2 X${(Number(x) + 5.2).toFixed(2)} Y${(Number(y) - 4.8).toFixed(2)} I2.40 J-1.60 E${(Number(e) + 0.061).toFixed(4)} ; pressure-fit radius`
+    if (index % 8 === 6) return `M106 S${160 + (layer % 4) * 18} ; cooling channel`
+    return `G1 X${(Number(x) - 6.2).toFixed(2)} Y${(Number(y) + 6.8).toFixed(2)} E${(Number(e) + 0.083).toFixed(4)} F2040 ; infill lattice`
+  }),
+  'G1 E-1.2000 F1800 ; retract',
+  'G1 Z18.500 F1200 ; clear part',
+  'M104 S0 ; tool off',
+  'M140 S0 ; bed off',
+  'M107 ; fan off',
+  'M84 ; release motors',
+  'M30 ; production job complete',
+]
+
+const productionStatuses = [
+  [0, 'Initializing production node...'],
+  [14, 'Streaming toolpaths...'],
+  [36, 'Manufacturing in progress...'],
+  [82, 'Finalizing surface pass...'],
+  [100, 'Production complete'],
 ]
 
 const transactionFeed = [
@@ -187,12 +219,20 @@ const walletOptions = [
 ]
 
 const journey = [
-  ['marketplace', 'Marketplace'],
-  ['discovery', 'Discovery'],
-  ['nfc', 'NFC'],
-  ['execution', 'Execution'],
+  ['path', 'Manufacturing Path'],
+  ['problem', 'AI Generation'],
+  ['discovery', 'Route Job'],
+  ['execution', 'Manufacture'],
   ['proof', 'Proof-of-Make'],
   ['settlement', 'Settlement'],
+]
+
+const problemPlaceholder = 'Describe the manufacturing problem you want to solve...'
+const geometryPlaceholder = 'Optional: include dimensions, materials, or manufacturing constraints...'
+const analysisMessages = [
+  'Analyzing geometry...',
+  'Extracting manufacturing constraints...',
+  'Inferring adaptive topology...',
 ]
 
 function BrandMark({ className = '' }) {
@@ -347,22 +387,46 @@ function ProductVisual({ product }) {
 function App() {
   const [selectedProduct, setSelectedProduct] = useState(products[0])
   const [selectedMachine, setSelectedMachine] = useState(machines[0])
-  const [connected, setConnected] = useState(false)
   const [wallet, setWallet] = useState(null)
   const [walletModalOpen, setWalletModalOpen] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
+  const [problemPrompt, setProblemPrompt] = useState('')
+  const [geometryHints, setGeometryHints] = useState('')
+  const [focusedField, setFocusedField] = useState(null)
+  const [placeholderTick, setPlaceholderTick] = useState(0)
+  const [generationState, setGenerationState] = useState('idle')
+  const [referenceImages, setReferenceImages] = useState([])
+  const [imageAnalysisState, setImageAnalysisState] = useState('idle')
+  const [analysisMessageIndex, setAnalysisMessageIndex] = useState(0)
+  const [executionProgress, setExecutionProgress] = useState(0)
+  const [executionRunning, setExecutionRunning] = useState(false)
   const stepRefs = useRef([])
   const touchStartX = useRef(null)
+  const terminalFeedRef = useRef(null)
 
-  const productionProgress = connected ? 72 : 38
   const proofTime = '2026-05-08 21:44 UTC'
   const routedMachine = selectedMachine.compatible ? selectedMachine : (machines.find((machine) => machine.compatible) ?? machines[0])
   const walletName = wallet ? `${wallet.name} Connected` : 'Connection Required'
   const walletAddress = wallet?.address ?? 'Signer Required'
-  const routeStatus = wallet ? 'Machine Route Authorized' : 'Authorizing machine route...'
-  const executionStatus = wallet ? 'SOL execution ready' : 'SOL execution standby'
+  const routeStatus = wallet ? 'Production Route Authorized' : 'Authorizing production route...'
+  const executionStatus = wallet ? 'Manufacturing execution ready' : 'Manufacturing execution standby'
   const activeJourney = journey[activeStep]
+  const activeStepId = activeJourney[0]
   const progressWidth = `${(activeStep / (journey.length - 1)) * 100}%`
+  const placeholderCycleLength = Math.max(problemPlaceholder.length, geometryPlaceholder.length) + 46
+  const problemPlaceholderText = problemPlaceholder.slice(0, Math.min(placeholderTick, problemPlaceholder.length))
+  const geometryPlaceholderText = geometryPlaceholder.slice(0, Math.min(Math.max(placeholderTick - 8, 0), geometryPlaceholder.length))
+  const analysisActive = imageAnalysisState === 'analyzing'
+  const currentAnalysisMessage = analysisMessages[analysisMessageIndex] ?? analysisMessages[0]
+  const activeGcodeLine = Math.min(gcodeLines.length - 1, Math.floor((executionProgress / 100) * (gcodeLines.length - 1)))
+  const productionStatus = productionStatuses.reduce((status, [threshold, label]) => (
+    executionProgress >= threshold ? label : status
+  ), productionStatuses[0][1])
+  const executionComplete = executionProgress >= 100
+  const layerCount = Math.min(8, Math.max(1, Math.ceil((executionProgress / 100) * 8)))
+  const toolTemperature = executionComplete ? 42 : Math.round(188 + Math.min(executionProgress, 72) * 0.42)
+  const spindleLoad = executionComplete ? 'idle' : `${Math.round(38 + Math.sin(executionProgress / 11) * 8 + executionProgress * 0.34)}%`
+  const estimatedCompletion = executionComplete ? 'Complete' : `${Math.max(1, Math.ceil((100 - executionProgress) / 15))}m`
 
   const goToStep = (index) => {
     setActiveStep(Math.min(Math.max(index, 0), journey.length - 1))
@@ -370,6 +434,55 @@ function App() {
 
   const goNext = () => goToStep(activeStep + 1)
   const goPrevious = () => goToStep(activeStep - 1)
+
+  const startGeneration = () => {
+    if (generationState === 'generating') return
+    setGenerationState('generating')
+  }
+
+  const handleReferenceUpload = (event) => {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'))
+    if (!files.length) return
+
+    setReferenceImages((currentImages) => {
+      currentImages.forEach((image) => URL.revokeObjectURL(image.url))
+
+      return files.slice(0, 4).map((file) => ({
+        id: `${file.name}-${file.lastModified}-${file.size}`,
+        name: file.name,
+        url: URL.createObjectURL(file),
+      }))
+    })
+    setImageAnalysisState('analyzing')
+    setAnalysisMessageIndex(0)
+  }
+
+  const handlePrimaryNext = () => {
+    if (activeJourney[0] === 'problem') {
+      if (generationState === 'idle') {
+        startGeneration()
+        return
+      }
+
+      if (generationState === 'generated') {
+        goNext()
+      }
+
+      return
+    }
+
+    goNext()
+  }
+
+  const handleStepSelect = (index) => {
+    if (index > 1 && generationState !== 'generated') {
+      goToStep(1)
+      startGeneration()
+      return
+    }
+
+    goToStep(index)
+  }
 
   const handleTouchStart = (event) => {
     if (event.target.closest('.workflow-grid-wide')) return
@@ -383,20 +496,28 @@ function App() {
     touchStartX.current = null
 
     if (Math.abs(distance) < 54) return
-    if (distance < 0) goNext()
+    if (distance < 0) handlePrimaryNext()
     if (distance > 0) goPrevious()
   }
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (walletModalOpen) return
-      if (event.key === 'ArrowRight') goToStep(activeStep + 1)
+      if (event.key === 'ArrowRight') {
+        if (activeStep === 1) {
+          if (generationState === 'idle') setGenerationState('generating')
+          if (generationState === 'generated') goToStep(activeStep + 1)
+          return
+        }
+
+        goToStep(activeStep + 1)
+      }
       if (event.key === 'ArrowLeft') goToStep(activeStep - 1)
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeStep, walletModalOpen])
+  }, [activeStep, walletModalOpen, generationState])
 
   useEffect(() => {
     stepRefs.current[activeStep]?.scrollIntoView({
@@ -406,31 +527,122 @@ function App() {
     })
   }, [activeStep])
 
+  useEffect(() => {
+    if (generationState !== 'generating') return undefined
+
+    const timer = window.setTimeout(() => {
+      setGenerationState('generated')
+    }, 1800)
+
+    return () => window.clearTimeout(timer)
+  }, [generationState])
+
+  useEffect(() => {
+    if (activeStepId !== 'execution') return undefined
+
+    let animationFrame = 0
+    const duration = 8200
+    let start = 0
+
+    const tick = (now) => {
+      if (!start) {
+        start = now
+        setExecutionProgress(0)
+        setExecutionRunning(true)
+      }
+
+      const elapsed = Math.min((now - start) / duration, 1)
+      const eased = elapsed < 0.5
+        ? 4 * elapsed * elapsed * elapsed
+        : 1 - ((-2 * elapsed + 2) ** 3) / 2
+
+      setExecutionProgress(Math.min(100, Math.round(eased * 100)))
+
+      if (elapsed < 1) {
+        animationFrame = window.requestAnimationFrame(tick)
+        return
+      }
+
+      setExecutionProgress(100)
+      setExecutionRunning(false)
+    }
+
+    animationFrame = window.requestAnimationFrame(tick)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      setExecutionRunning(false)
+    }
+  }, [activeStepId])
+
+  useEffect(() => {
+    if (!terminalFeedRef.current || activeStepId !== 'execution') return
+
+    const terminal = terminalFeedRef.current
+    const activeLine = terminal.querySelector(`[data-line-index="${activeGcodeLine}"]`)
+
+    if (activeLine) {
+      terminal.scrollTo({
+        top: Math.max(0, activeLine.offsetTop - terminal.clientHeight * 0.48),
+        behavior: executionComplete ? 'auto' : 'smooth',
+      })
+    }
+  }, [activeGcodeLine, activeStepId, executionComplete])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setPlaceholderTick((tick) => (tick + 1) % placeholderCycleLength)
+    }, 42)
+
+    return () => window.clearInterval(timer)
+  }, [placeholderCycleLength])
+
+  useEffect(() => {
+    if (imageAnalysisState !== 'analyzing') return undefined
+
+    const timer = window.setTimeout(() => {
+      if (analysisMessageIndex >= analysisMessages.length - 1) {
+        setImageAnalysisState('complete')
+        return
+      }
+
+      setAnalysisMessageIndex((index) => index + 1)
+    }, analysisMessageIndex >= analysisMessages.length - 1 ? 720 : 860)
+
+    return () => window.clearTimeout(timer)
+  }, [analysisMessageIndex, imageAnalysisState])
+
+  useEffect(() => (
+    () => {
+      referenceImages.forEach((image) => URL.revokeObjectURL(image.url))
+    }
+  ), [referenceImages])
+
   const slideHeader = {
-    marketplace: [
-      'AI solution marketplace',
-      'Select a generated adaptive manufacturing solution.',
-      'Choose an AI-generated connector variant ready for decentralized production, with node compatibility, SOL execution pricing, and fabrication metadata.',
+    path: [
+      'Decentralized manufacturing platform',
+      'Generated. Routed. Manufactured.',
+      'AI-generated parts routed through decentralized production nodes.',
+    ],
+    problem: [
+      'AI Generation',
+      'Generate production-ready solution variants.',
+      'Describe the manufacturing problem, add reference context, and synthesize adaptive parts ready for decentralized production routing.',
     ],
     discovery: [
-      'Machine discovery',
-      'Route the job through the production network.',
-      'Select an available machine node and watch the route panel update with state, load, and distance.',
-    ],
-    nfc: [
-      'NFC connection',
-      'Authorize the selected node with a tap simulation.',
-      'Bind the production packet to the machine through secure mobile NFC authorization.',
+      'Route Job',
+      'Find compatible decentralized machine nodes.',
+      'Materialize matches the generated part to nearby production nodes by compatibility, distance, availability, and production ETA.',
     ],
     execution: [
-      'Production execution',
-      'Stream the job into machine control.',
-      'Monitor machine telemetry, G-code streaming, progress, and estimated completion.',
+      'Manufacture',
+      'Execute the job on the selected local node.',
+      'Monitor machine telemetry, toolpath streaming, progress, and estimated completion as the part is manufactured locally.',
     ],
     proof: [
       'Proof-of-Make',
-      'Verify completion with a production certificate.',
-      'Inspect the machine ID, Solana-style job hash, timestamp, and verified node states.',
+      'Verify local manufacturing completion.',
+      'Inspect the machine-submitted completion proof, machine ID, job hash, timestamp, and production status.',
     ],
     settlement: [
       'SOL settlement',
@@ -442,46 +654,246 @@ function App() {
   const renderSlide = () => {
     const [id] = activeJourney
 
-    if (id === 'marketplace') {
+    if (id === 'path') {
       return (
-        <div className="workflow-grid workflow-grid-wide">
-          {products.map((product, index) => (
-            <motion.button
-              key={product.name}
-              type="button"
-              onClick={() => setSelectedProduct(product)}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: index * 0.06 }}
-              className={`surface product-card text-left ${selectedProduct.name === product.name ? 'selected-card' : ''}`}
-            >
-              <ProductVisual product={product} />
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">{product.name}</h3>
-                    <p className="mt-1 text-sm text-slate-400">{product.type}</p>
-                  </div>
-                  <Box className="h-5 w-5 text-amber-200" />
+        <div className="path-selection-grid">
+          <motion.button
+            type="button"
+            className="surface production-path-card active"
+            onClick={() => goNext()}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42 }}
+          >
+            <div className="path-card-visual">
+              <Sparkles className="h-8 w-8 text-amber-200" />
+              <span />
+            </div>
+            <div>
+              <p className="path-card-kicker">Active workflow</p>
+              <h3>AI Solution Generation</h3>
+              <p>Generate a custom manufacturable solution using AI-assisted adaptive geometry synthesis.</p>
+            </div>
+            <strong className="path-card-cta">
+              Start Generation
+              <ArrowRight className="h-4 w-4" />
+            </strong>
+          </motion.button>
+
+          {[
+            {
+              title: 'Upload Production Files',
+              description: 'Upload ready-to-manufacture CAD, STL, or G-code files for decentralized production routing.',
+              icon: UploadCloud,
+            },
+            {
+              title: 'Manufacturing Marketplace',
+              description: 'Browse reusable manufacturing templates and production-ready component catalogs.',
+              icon: Box,
+            },
+          ].map((path, index) => {
+            const Icon = path.icon
+
+            return (
+              <motion.div
+                key={path.title}
+                className="surface production-path-card disabled"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.42, delay: (index + 1) * 0.08 }}
+                aria-disabled="true"
+              >
+                <div className="path-card-badge">COMING SOON</div>
+                <div className="path-card-visual">
+                  <Icon className="h-8 w-8 text-violet-200" />
+                  <span />
                 </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {product.generationLabels.map((item) => (
-                    <span key={item} className="rounded-md bg-white/8 px-2.5 py-1 text-xs text-violet-100 ring-1 ring-white/10">
-                      {item}
-                    </span>
-                  ))}
+                <div>
+                  <p className="path-card-kicker">Planned workflow</p>
+                  <h3>{path.title}</h3>
+                  <p>{path.description}</p>
                 </div>
-                <div className="mt-6 grid gap-3 text-sm text-slate-300">
-                  <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-slate-500" />{product.time}</span>
-                  <span className="flex items-center gap-2"><Coins className="h-4 w-4 text-slate-500" />{product.cost}</span>
-                  <span className="flex items-center gap-2"><CircleDollarSign className="h-4 w-4 text-slate-500" />{product.stablePrice}</span>
-                  <span className="flex items-center gap-2"><Zap className="h-4 w-4 text-slate-500" />{product.networkFee}</span>
-                  <span className="flex items-center gap-2"><Box className="h-4 w-4 text-slate-500" />{product.compatibility.join(' + ')}</span>
-                  <span className="flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-500" />{product.nearest}</span>
-                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )
+    }
+
+    if (id === 'problem') {
+      const isGenerating = generationState === 'generating'
+      const isGenerated = generationState === 'generated'
+
+      return (
+        <div className="workflow-grid problem-input-grid lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="surface problem-input-panel">
+            <div className="problem-input-header">
+              <Sparkles className="h-5 w-5 text-amber-200" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Manufacturing problem</p>
+                <h3 className="mt-2 text-2xl font-semibold text-white">Generate a production-ready part</h3>
               </div>
-            </motion.button>
-          ))}
+            </div>
+
+            <label className="reference-upload">
+              <input type="file" accept="image/*" multiple onChange={handleReferenceUpload} />
+              <UploadCloud className="h-6 w-6 text-amber-200" />
+              <span>
+                <strong>Upload reference images</strong>
+                <em>Pipe ends, broken components, scans, or workshop photos</em>
+              </span>
+            </label>
+
+            {referenceImages.length ? (
+              <div className="reference-preview-grid">
+                <AnimatePresence>
+                  {referenceImages.map((image) => (
+                    <motion.div
+                      key={image.id}
+                      className="reference-preview-card"
+                      initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -8, filter: 'blur(8px)' }}
+                      transition={{ duration: 0.28, ease: 'easeOut' }}
+                    >
+                      <img src={image.url} alt="" />
+                      <div>
+                        <strong>{image.name || 'Reference image loaded'}</strong>
+                        <span><CheckCircle2 className="h-3.5 w-3.5" /> Reference image loaded</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            ) : null}
+
+            <label className="problem-field">
+              <span><Image className="h-4 w-4" /> Problem description</span>
+              <div className="ai-input-shell textarea-shell">
+                <textarea
+                  value={problemPrompt}
+                  onFocus={() => setFocusedField('problem')}
+                  onBlur={() => setFocusedField(null)}
+                  onChange={(event) => setProblemPrompt(event.target.value)}
+                />
+                <span className={`animated-placeholder ${problemPrompt || focusedField === 'problem' ? 'hidden' : ''}`}>
+                  {problemPlaceholderText}
+                  <i />
+                </span>
+              </div>
+            </label>
+
+            <label className="problem-field">
+              <span><Ruler className="h-4 w-4" /> Geometry / Constraints</span>
+              <div className="ai-input-shell">
+                <input
+                  type="text"
+                  value={geometryHints}
+                  onFocus={() => setFocusedField('geometry')}
+                  onBlur={() => setFocusedField(null)}
+                  onChange={(event) => setGeometryHints(event.target.value)}
+                />
+                <span className={`animated-placeholder ${geometryHints || focusedField === 'geometry' ? 'hidden' : ''}`}>
+                  {geometryPlaceholderText}
+                  <i />
+                </span>
+              </div>
+            </label>
+
+            <div className="problem-chip-row">
+              <span>Pressure fit</span>
+              <span>Field repair</span>
+              <span>CNC + additive</span>
+              <span>Local node ready</span>
+            </div>
+
+            <button type="button" className="problem-generate-button" onClick={startGeneration} disabled={isGenerating}>
+              {isGenerating ? 'Generating...' : isGenerated ? 'Regenerate solutions' : 'Generate manufacturable solutions'}
+              <Sparkles className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="surface generation-panel">
+            <div className={`generation-core ${generationState} ${analysisActive ? 'analyzing' : ''}`}>
+              <div className="generation-orbit generation-orbit-a" />
+              <div className="generation-orbit generation-orbit-b" />
+              <div className="generation-orbit generation-orbit-c" />
+              {!isGenerated ? (
+                <div className="ai-fabrication-placeholder" aria-hidden="true">
+                  <div className="ai-wireframe">
+                    <span className="wireframe-axis wireframe-axis-x" />
+                    <span className="wireframe-axis wireframe-axis-y" />
+                    <span className="wireframe-axis wireframe-axis-z" />
+                  </div>
+                  <div className="ai-scan-grid" />
+                  <div className="ai-particle-field">
+                    {Array.from({ length: 12 }).map((_, index) => (
+                      <span key={index} style={{ '--particle-index': index }} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <motion.div
+                  className="generated-connector-reveal"
+                  initial={{ opacity: 0, scale: 0.92, filter: 'blur(10px)' }}
+                  animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.52, ease: 'easeOut' }}
+                >
+                  <ProductVisual product={selectedProduct} />
+                </motion.div>
+              )}
+            </div>
+
+            <div className="generation-status">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">AI fabrication engine</p>
+              {referenceImages.length ? (
+                <div className={`analysis-status-pill ${imageAnalysisState}`}>
+                  <span />
+                  {analysisActive ? currentAnalysisMessage : 'Reference images verified'}
+                </div>
+              ) : null}
+              <h3 className="mt-2 text-2xl font-semibold text-white">
+                {analysisActive ? currentAnalysisMessage : isGenerating ? 'Generating manufacturable solutions...' : isGenerated ? 'Manufacturing-ready variants synthesized' : 'Waiting for adaptive geometry synthesis'}
+              </h3>
+              <p className="mt-3 leading-7 text-slate-400">
+                {analysisActive
+                  ? 'Uploaded references are being converted into geometry cues, fit constraints, and manufacturable topology targets.'
+                  : isGenerated
+                  ? 'Three connector solutions are packaged with material strategy, machine compatibility, and decentralized production routing.'
+                  : isGenerating
+                    ? 'Materialize is inferring geometry, validating fabrication constraints, and searching the local production graph.'
+                    : referenceImages.length
+                      ? 'Reference images are verified and ready to guide adaptive geometry synthesis.'
+                      : 'Reference data and manufacturing constraints are staged for AI synthesis.'}
+              </p>
+            </div>
+
+            <div className="generation-sequence">
+              {['Extract constraints', 'Infer geometry', 'Synthesize variants', 'Validate production'].map((item, index) => (
+                <div key={item} className={`generation-step ${isGenerating || isGenerated ? 'active' : ''} ${isGenerated ? 'complete' : ''}`} style={{ transitionDelay: `${index * 120}ms` }}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{item}</strong>
+                </div>
+              ))}
+            </div>
+
+            {isGenerated ? (
+              <div className="generated-variant-strip">
+                {products.map((product) => (
+                  <button
+                    key={product.name}
+                    type="button"
+                    className={`generated-variant-chip ${selectedProduct.name === product.name ? 'active' : ''}`}
+                    onClick={() => setSelectedProduct(product)}
+                  >
+                    <span>{product.name}</span>
+                    <strong>{product.type}</strong>
+                    <em>{product.time} / {product.compatibility.join(' + ')}</em>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       )
     }
@@ -552,8 +964,8 @@ function App() {
 
               <div className="user-location-node" style={{ left: '22%', top: '46%' }}>
                 <span />
-                <strong>Operator location</strong>
-                <em>Region: Belgrade mesh</em>
+                <strong>Your location</strong>
+                <em>Region: Belgrade - Serbia</em>
               </div>
 
               {discoveryMachines.map((machine) => (
@@ -566,7 +978,6 @@ function App() {
                   onClick={() => {
                     if (!machine.compatible) return
                     setSelectedMachine(machine)
-                    setConnected(machine.availability === 'available')
                   }}
                 >
                   <span className="node-dot" />
@@ -581,6 +992,10 @@ function App() {
                 <Radio className="h-4 w-4" />
                 Production route established
               </div>
+              <div className="route-capability-badge">
+                <SmartphoneNfc className="h-4 w-4" />
+                NFC pickup verification supported
+              </div>
               {discoveryMachines.map((machine) => (
                 <button
                   key={machine.id}
@@ -590,7 +1005,6 @@ function App() {
                   onClick={() => {
                     if (!machine.compatible) return
                     setSelectedMachine(machine)
-                    setConnected(machine.availability === 'available')
                   }}
                 >
                   <div>
@@ -611,117 +1025,67 @@ function App() {
       )
     }
 
-    if (id === 'nfc') {
-      return (
-        <div className="workflow-grid lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div className="surface machine-auth-panel">
-            <div className="machine-auth-scene">
-              <div className="machine-frame">
-                <div className="machine-head">
-                  <span />
-                  <strong>{routedMachine.name}</strong>
-                </div>
-                <div className="machine-window">
-                  <div className="machine-toolpath" />
-                  <div className="machine-spindle" />
-                </div>
-                <button type="button" className={`machine-nfc-tag ${connected ? 'authorized' : ''}`} onClick={() => setConnected(true)}>
-                  <span className="nfc-pulse" />
-                  <SmartphoneNfc className="relative z-10 h-6 w-6 text-amber-100" />
-                  <strong>{connected ? 'Authorized' : 'NFC tag'}</strong>
-                </button>
-                <div className="machine-base">
-                  <span>Node ID</span>
-                  <strong>{routedMachine.id}</strong>
-                </div>
-              </div>
-              <div className="machine-auth-copy">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Physical authorization point</p>
-                <h3 className="mt-2 text-2xl font-semibold text-white">Tap the machine-mounted NFC tag</h3>
-                <p className="mt-3 leading-7 text-slate-400">
-                  Authorize the selected production node before execution begins.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="phone-shell">
-            <div className="phone-notch" />
-            <div className="phone-screen">
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span className="inline-flex items-center gap-2"><BrandMark className="brand-mark-xs" /> Machine authorization</span>
-                <Wifi className="h-4 w-4 text-amber-200" />
-              </div>
-              <div className="mt-10 grid place-items-center">
-                <div className={`connect-orb ${connected ? 'connected' : ''}`}>
-                  {connected ? <CheckCircle2 className="h-10 w-10 text-amber-200" /> : <ScanLine className="h-10 w-10 text-pink-200" />}
-                </div>
-              </div>
-              <div className="mt-10 rounded-lg border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Production node detected</p>
-                <p className="mt-2 font-medium text-white">{routedMachine.name} ready</p>
-                <p className="mt-1 text-sm text-amber-200">
-                  {connected ? 'Execution channel established' : 'Tap NFC tag to authorize execution'}
-                </p>
-              </div>
-              <div className="mt-4 grid gap-2">
-                <div className={`phone-auth-row ${connected ? 'complete' : ''}`}>
-                  <span>{connected ? 'Production node authenticated' : 'Machine route authorization required'}</span>
-                </div>
-                <div className={`phone-auth-row ${connected ? 'complete' : ''}`}>
-                  <span>{connected ? 'SOL settlement ready' : 'Settlement channel standby'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
     if (id === 'execution') {
       return (
         <div className="workflow-grid lg:grid-cols-[1.05fr_0.95fr]">
           <div className="dashboard-shell">
             <div className="flex items-center justify-between border-b border-white/10 p-5">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Production job</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Decentralized production job</p>
                 <h3 className="mt-1 text-xl font-semibold text-white">{selectedProduct.name}</h3>
               </div>
-              <Timer className="h-5 w-5 text-violet-200" />
+              <div className={`execution-state-pill ${executionComplete ? 'complete' : executionRunning ? 'running' : ''}`}>
+                <span />
+                {executionComplete ? 'Proof-of-Make Generated' : productionStatus}
+              </div>
             </div>
             <div className="p-5">
               <div className="mb-3 flex justify-between text-sm">
-                <span className="text-slate-400">Production progress</span>
-                <span className="font-medium text-white">{productionProgress}%</span>
+                <span className="text-slate-400">{productionStatus}</span>
+                <span className="font-medium text-white">{executionProgress}%</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-white/8">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-amber-300 via-pink-400 to-violet-400"
-                  initial={{ width: '8%' }}
-                  animate={{ width: `${productionProgress}%` }}
-                  transition={{ duration: 1.4, ease: 'easeOut' }}
+                  animate={{ width: `${executionProgress}%` }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
                 />
               </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {executionComplete ? (
+                  <span className="production-complete-badge"><CheckCircle2 className="h-4 w-4" /> Production Complete</span>
+                ) : (
+                  <span className="production-live-badge"><Timer className="h-4 w-4" /> Live execution</span>
+                )}
+                <span className="production-live-badge muted">Machine node {routedMachine.id}</span>
+              </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="metric-card"><span>Spindle</span><strong>11.8k</strong></div>
-                <div className="metric-card"><span>Thermal</span><strong>62C</strong></div>
-                <div className="metric-card"><span>ETA</span><strong>18m</strong></div>
+                <div className="metric-card"><span>Layer count</span><strong>{layerCount}/8</strong></div>
+                <div className="metric-card"><span>Tool temperature</span><strong>{toolTemperature}C</strong></div>
+                <div className="metric-card"><span>ETA</span><strong>{estimatedCompletion}</strong></div>
+                <div className="metric-card"><span>Machine node</span><strong>{routedMachine.id}</strong></div>
+                <div className="metric-card"><span>Material</span><strong>{selectedProduct.material}</strong></div>
+                <div className="metric-card"><span>Tool status</span><strong>{spindleLoad}</strong></div>
               </div>
             </div>
           </div>
           <div className="terminal-panel">
-            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-sm text-slate-400">
-              <Terminal className="h-4 w-4 text-violet-200" />
-              G-code stream
+            <div className="terminal-header">
+              <span><Terminal className="h-4 w-4 text-violet-200" /> Toolpath stream</span>
+              <strong>{executionComplete ? 'COMPLETE' : `LINE ${String(activeGcodeLine + 1).padStart(2, '0')}`}</strong>
             </div>
-            <div className="space-y-2 p-4 font-mono text-xs text-violet-100">
+            <div className="terminal-feed" ref={terminalFeedRef}>
               {gcodeLines.map((line, index) => (
                 <motion.p
-                  key={line}
+                  key={`${index}-${line}`}
+                  data-line-index={index}
+                  className={`gcode-line ${index === activeGcodeLine ? 'active' : ''} ${index < activeGcodeLine ? 'complete' : ''}`}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.35, delay: index * 0.1 }}
+                  transition={{ duration: 0.24, delay: Math.min(index * 0.012, 0.5) }}
                 >
-                  <span className="text-slate-600">{String(index + 1).padStart(2, '0')}</span> {line}
+                  <span>{String(index + 1).padStart(3, '0')}</span>
+                  <code>{line}</code>
                 </motion.p>
               ))}
             </div>
@@ -742,12 +1106,13 @@ function App() {
             <BadgeCheck className="h-14 w-14 text-amber-200" />
           </motion.div>
           <div>
-            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-amber-200"><BrandMark className="brand-mark-xs" /> Completion certificate</p>
+            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-amber-200"><BrandMark className="brand-mark-xs" /> Machine-submitted completion proof</p>
             <h3 className="mt-2 text-3xl font-semibold tracking-tight text-white">{selectedProduct.name}</h3>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 md:grid-cols-4">
               <div className="proof-field"><span>Job hash</span><strong>{selectedProduct.txHash}</strong></div>
               <div className="proof-field"><span>Machine ID</span><strong>{routedMachine.id}</strong></div>
               <div className="proof-field"><span>Timestamp</span><strong>{proofTime}</strong></div>
+              <div className="proof-field"><span>Production status</span><strong>Manufactured locally</strong></div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-4">
               <div className="chain-confirm"><CheckCircle2 className="h-4 w-4" />Verified node</div>
@@ -870,7 +1235,7 @@ function App() {
               }}
               type="button"
               className={`workflow-step ${index === activeStep ? 'active' : ''} ${index < activeStep ? 'complete' : ''}`}
-              onClick={() => goToStep(index)}
+              onClick={() => handleStepSelect(index)}
             >
               <span>{String(index + 1).padStart(2, '0')}</span>
               {label}
@@ -919,8 +1284,13 @@ function App() {
             <span>{activeJourney[1]}</span>
             <strong>{String(activeStep + 1).padStart(2, '0')} / {String(journey.length).padStart(2, '0')}</strong>
           </div>
-          <button type="button" className="workflow-control primary" onClick={goNext} disabled={activeStep === journey.length - 1}>
-            Next
+          <button
+            type="button"
+            className="workflow-control primary"
+            onClick={handlePrimaryNext}
+            disabled={activeStep === journey.length - 1 || generationState === 'generating'}
+          >
+            {activeJourney[0] === 'problem' && generationState === 'idle' ? 'Generate' : activeJourney[0] === 'problem' && generationState === 'generated' ? 'Route Job' : 'Next'}
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
