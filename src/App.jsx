@@ -6,15 +6,12 @@ import {
   Box,
   CheckCircle2,
   CircleDollarSign,
-  ClipboardCheck,
   Cpu,
-  Factory,
   Gauge,
   HelpCircle,
   Image,
   Inbox,
   Mail,
-  MapPinned,
   Play,
   Radio,
   RotateCcw,
@@ -247,63 +244,11 @@ const analysisMessages = [
 ]
 
 const launcherSteps = [
-  {
-    id: 'request',
-    label: 'Customer Request',
-    icon: Send,
-    kicker: 'Incoming customer request',
-    title: '30 personalized wooden tags',
-    body: 'Need 30 personalized wooden tags for a small gift brand. Wood material, around 5 cm, logo engraving, deadline next Friday.',
-  },
-  {
-    id: 'brief',
-    label: 'AI Brief',
-    icon: Sparkles,
-    kicker: 'AI-generated production brief',
-    title: 'Manufacturing intent structured',
-    brief: [
-      ['Product', 'Personalized wooden tags'],
-      ['Quantity', '30'],
-      ['Material', 'Wood'],
-      ['Process', 'Laser engraving / CNC compatible'],
-      ['Deadline', 'Next Friday'],
-      ['Quote needed', 'within 48h'],
-    ],
-  },
-  {
-    id: 'route',
-    label: 'Route Job',
-    icon: MapPinned,
-    kicker: 'Production graph routing',
-    title: 'Compatible nearby nodes found',
-  },
-  {
-    id: 'queue',
-    label: 'Workshop Queue',
-    icon: Factory,
-    kicker: 'Selected workshop queue',
-    title: 'CNC Axis-7 can reserve a slot',
-  },
-  {
-    id: 'accepted',
-    label: 'Accepted Status',
-    icon: ClipboardCheck,
-    kicker: 'Workshop accepted',
-    title: 'Customer notified: in production queue',
-  },
-  {
-    id: 'proof',
-    label: 'Proof-of-Make Preview',
-    icon: BadgeCheck,
-    kicker: 'Controlled proof preview',
-    title: 'Proof-of-Make package ready',
-  },
-]
-
-const launcherNodes = [
-  ['CNC Axis-7', 'compatible', '1.8 km', 'available'],
-  ['PrintCell M4', 'partially compatible', '0.7 km', 'review tooling'],
-  ['LaserForm 2X', 'compatible', '4.1 km', 'available'],
+  ['upload', 'Upload Request'],
+  ['preview', 'Uploaded Image Preview'],
+  ['brief', 'Request Sent / AI Brief'],
+  ['waiting', 'Waiting for Workshop'],
+  ['accepted', 'Job Accepted / Quote Received'],
 ]
 
 function LauncherShell({ children, screen }) {
@@ -332,156 +277,229 @@ function LauncherShell({ children, screen }) {
 
 function LauncherDemo() {
   const [activeStep, setActiveStep] = useState(0)
-  const currentStep = launcherSteps[activeStep]
-  const ActiveIcon = currentStep.icon
-  const progressWidth = `${((activeStep + 1) / launcherSteps.length) * 100}%`
+  const [offerDeclined, setOfferDeclined] = useState(false)
+  const [currentStepId, currentStepLabel] = launcherSteps[activeStep]
+  const requestDescription = 'Drveni privezak prečnika 5 cm, sa Materialize logom.'
+  const stepCount = launcherSteps.length
+  const canGoPrevious = activeStep > 0
+  const canGoNext = activeStep < stepCount - 1
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveStep((step) => (step >= launcherSteps.length - 1 ? step : step + 1))
-    }, 5200)
-
-    return () => window.clearInterval(timer)
-  }, [])
+  const goPrevious = () => setActiveStep((step) => Math.max(0, step - 1))
+  const goNext = () => setActiveStep((step) => Math.min(stepCount - 1, step + 1))
+  const resetDemo = () => {
+    setActiveStep(0)
+    setOfferDeclined(false)
+  }
 
   return (
     <LauncherShell screen="customer">
-      <section className="launcher-hero">
-        <div>
-          <p className="section-kicker">Controlled customer simulation</p>
-          <h1>From request to accepted production queue.</h1>
-          <p className="section-copy">
-            A concise 45-60 second walkthrough for Demo Day: customer request, AI brief, routing, workshop acceptance, and proof preview.
-          </p>
+      <section className="mobile-demo-layout">
+        <div className="mobile-demo-intro">
+          <p className="section-kicker">Mobile customer simulation</p>
+          <h1>Customer request flow</h1>
+          <p className="section-copy">A manual, frontend-only Demo Day mock for sending a small production request to a local workshop.</p>
         </div>
-        <div className="launcher-live-pill">
-          <span />
-          Live mock sequence
-          <strong>{String(activeStep + 1).padStart(2, '0')} / 06</strong>
-        </div>
-      </section>
 
-      <div className="launcher-demo-grid">
-        <aside className="launcher-step-rail">
-          <div className="launcher-progress-track">
-            <motion.div animate={{ height: progressWidth }} transition={{ duration: 0.45, ease: 'easeOut' }} />
-          </div>
-          {launcherSteps.map((step, index) => {
-            const Icon = step.icon
-            return (
-              <button
-                key={step.id}
-                type="button"
-                className={`launcher-step-button ${index === activeStep ? 'active' : ''} ${index < activeStep ? 'complete' : ''}`}
-                onClick={() => setActiveStep(index)}
-              >
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <Icon className="h-4 w-4" />
-                <strong>{step.label}</strong>
-              </button>
-            )
-          })}
-        </aside>
+        <div className="phone-frame">
+          <div className="phone-speaker" />
+          <div className="phone-screen">
+            <div className="phone-app-header">
+              <BrandMark className="brand-mark-sm" />
+              <span>
+                <strong>Materialize</strong>
+                <em>Customer request</em>
+              </span>
+            </div>
 
-        <section className="launcher-stage surface">
+            <div className="phone-progress">
+              {launcherSteps.map(([id], index) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={`Go to step ${index + 1}`}
+                  className={index === activeStep ? 'active' : index < activeStep ? 'complete' : ''}
+                  onClick={() => {
+                    setActiveStep(index)
+                    if (index !== stepCount - 1) setOfferDeclined(false)
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="phone-step-meta">
+              <span>{String(activeStep + 1).padStart(2, '0')} / {String(stepCount).padStart(2, '0')}</span>
+              <strong>{currentStepLabel}</strong>
+            </div>
+
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentStep.id}
-              className="launcher-stage-card"
-              initial={{ opacity: 0, y: 24, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -18, filter: 'blur(10px)' }}
-              transition={{ duration: 0.34, ease: 'easeOut' }}
+              key={currentStepId}
+              className="phone-step-card"
+              initial={{ opacity: 0, x: 22, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: -18, filter: 'blur(8px)' }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
             >
-              <div className="launcher-card-heading">
-                <div className="launcher-icon-orb"><ActiveIcon className="h-7 w-7" /></div>
-                <div>
-                  <p>{currentStep.kicker}</p>
-                  <h2>{currentStep.title}</h2>
-                </div>
-              </div>
-
-              {currentStep.id === 'request' ? (
-                <div className="customer-request-card">
-                  <p>{currentStep.body}</p>
-                  <div>
-                    <span>Gift brand</span>
-                    <span>Wood</span>
-                    <span>5 cm</span>
-                    <span>Logo engraving</span>
-                  </div>
-                </div>
+              {currentStepId === 'upload' ? (
+                <>
+                  <h2>Send production request</h2>
+                  <button type="button" className="mobile-upload-card">
+                    <UploadCloud className="h-7 w-7" />
+                    <span>Upload image</span>
+                    <em>Materialize logo mock asset</em>
+                  </button>
+                  <label className="mobile-field">
+                    <span>Description</span>
+                    <textarea value={requestDescription} readOnly />
+                  </label>
+                  <button type="button" className="mobile-primary-action" onClick={goNext}>
+                    Send request
+                    <Send className="h-4 w-4" />
+                  </button>
+                </>
               ) : null}
 
-              {currentStep.id === 'brief' ? (
-                <div className="brief-grid">
-                  {currentStep.brief.map(([label, value]) => (
-                    <div key={label} className="brief-field">
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {currentStep.id === 'route' ? (
-                <div className="launcher-node-grid">
-                  {launcherNodes.map(([name, match, distance, status]) => (
-                    <div key={name} className={`launcher-node-card ${match === 'partially compatible' ? 'partial' : 'compatible'}`}>
-                      <span className="node-dot" />
-                      <strong>{name}</strong>
-                      <em>{match}</em>
-                      <div>
-                        <span>{distance}</span>
-                        <span>{status}</span>
+              {currentStepId === 'preview' ? (
+                <>
+                  <h2>Uploaded Image Preview</h2>
+                  <div className="mobile-preview-card">
+                    <p>Wooden engraving preview</p>
+                    <div className="engraving-preview-wrap">
+                      <div className="engraved-pendant" aria-label="Engraving-style Materialize logo preview">
+                        <span className="pendant-hole" />
+                        <div className="engraved-cube">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                        <strong>Materialize</strong>
+                        <em>demo sample</em>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="engraving-preview-note">
+                      <strong>Uploaded logo → engraving-ready design</strong>
+                      <em>{requestDescription}</em>
+                    </div>
+                  </div>
+                  <div className="mobile-info-stack">
+                    <span><em>Estimated product type</em><strong>Wooden pendant / keychain</strong></span>
+                    <span><em>Suggested process</em><strong>Laser engraving / CNC cutting</strong></span>
+                  </div>
+                  <button type="button" className="mobile-primary-action" onClick={goNext}>
+                    Generate production brief
+                    <Sparkles className="h-4 w-4" />
+                  </button>
+                </>
               ) : null}
 
-              {currentStep.id === 'queue' ? (
-                <div className="queue-card">
-                  <div>
-                    <Factory className="h-8 w-8 text-amber-200" />
-                    <span>Selected node</span>
-                    <strong>CNC Axis-7</strong>
+              {currentStepId === 'brief' ? (
+                <>
+                  <h2>Request sent for processing</h2>
+                  <p className="mobile-support-copy">Materialize is converting your request into a production brief.</p>
+                  <div className="mobile-brief-card">
+                    {[
+                      ['Product', 'Wooden pendant'],
+                      ['Diameter', '5 cm'],
+                      ['Material', 'Wood'],
+                      ['Process', 'Laser engraving / CNC cutting'],
+                      ['Quantity', 'Demo sample'],
+                      ['Deadline', 'Demo Day'],
+                    ].map(([label, value]) => (
+                      <span key={label}><em>{label}</em><strong>{value}</strong></span>
+                    ))}
                   </div>
-                  <div className="queue-metrics">
-                    <span><em>Queue</em><strong>3 jobs ahead</strong></span>
-                    <span><em>Estimated slot</em><strong>Friday 16:00</strong></span>
-                    <span><em>Routing status</em><strong>Awaiting workshop accept</strong></span>
+                  <div className="mobile-status-line">
+                    <span />
+                    Finding compatible workshop node...
                   </div>
-                </div>
+                  <button type="button" className="mobile-primary-action" onClick={goNext}>
+                    Route to workshop
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </>
               ) : null}
 
-              {currentStep.id === 'accepted' ? (
-                <div className="accepted-card">
-                  <CheckCircle2 className="h-14 w-14 text-amber-200" />
-                  <h3>Accepted / In Queue</h3>
-                  <p>Workshop accepted the request. Customer quote window remains within 48h.</p>
-                  <strong>Production slot reserved: Friday, 16:00</strong>
-                </div>
+              {currentStepId === 'waiting' ? (
+                <>
+                  <h2>Waiting for workshop response</h2>
+                  <p className="mobile-support-copy">Your request was sent to CNC Axis-7 / Local workshop node.</p>
+                  <div className="mobile-check-card">
+                    <strong>Workshop is checking</strong>
+                    <span>current queue</span>
+                    <span>material compatibility</span>
+                    <span>available production slot</span>
+                  </div>
+                  <div className="mobile-timeline">
+                    {[
+                      ['Request sent', 'done'],
+                      ['Brief generated', 'done'],
+                      ['Workshop notified', 'done'],
+                      ['Waiting for acceptance', 'pending'],
+                    ].map(([label, status]) => (
+                      <span key={label} className={status}>
+                        <CheckCircle2 className="h-4 w-4" />
+                        {label}{status === 'pending' ? ' ...' : ''}
+                      </span>
+                    ))}
+                  </div>
+                  <button type="button" className="mobile-primary-action" onClick={goNext}>
+                    Show accepted offer
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </>
               ) : null}
 
-              {currentStep.id === 'proof' ? (
-                <div className="proof-preview-card">
-                  <div className="wood-tag-preview">
-                    <span>MG</span>
-                    <em>small gift brand</em>
+              {currentStepId === 'accepted' ? (
+                <>
+                  <div className="mobile-success-mark">
+                    <CheckCircle2 className="h-8 w-8" />
                   </div>
-                  <div className="proof-preview-fields">
-                    <span><em>Proof type</em><strong>Proof-of-Make preview</strong></span>
-                    <span><em>Node</em><strong>CNC Axis-7</strong></span>
-                    <span><em>Batch</em><strong>30 wooden tags</strong></span>
-                    <span><em>Status</em><strong>Ready for production</strong></span>
+                  <h2>Job accepted</h2>
+                  <p className="mobile-support-copy">CNC Axis-7 accepted your request.</p>
+                  <div className="mobile-offer-card">
+                    <span><em>Estimated price</em><strong>1.500 RSD</strong></span>
+                    <span><em>Pickup</em><strong>Naučno-tehnološki park Niš</strong></span>
+                    <span><em>Estimated time</em><strong>Today, 16:00</strong></span>
+                    <span><em>Offer valid until</em><strong>Today, 14:30</strong></span>
+                    <span><em>Status</em><strong>Your job is now in production queue.</strong></span>
+                    <p>Accept within 30 minutes to keep the scheduled pickup time.</p>
                   </div>
-                </div>
+                  <div className="mobile-offer-actions">
+                    <button type="button" className="mobile-primary-action">Accept offer</button>
+                    <button type="button" className="mobile-secondary-action" onClick={() => setOfferDeclined(true)}>Decline offer</button>
+                  </div>
+                  {offerDeclined ? (
+                    <div className="mobile-decline-message">
+                      Offer declined. Materialize can route the request to another workshop.
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </motion.div>
           </AnimatePresence>
-        </section>
-      </div>
+
+            <div className="mobile-demo-controls">
+              <button type="button" onClick={goPrevious} disabled={!canGoPrevious}>Previous</button>
+              <button type="button" onClick={goNext} disabled={!canGoNext}>Next</button>
+              <button type="button" onClick={resetDemo}>Reset demo</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mobile-demo-step-list">
+          {launcherSteps.map(([id, label], index) => (
+            <button
+              key={id}
+              type="button"
+              className={index === activeStep ? 'active' : ''}
+              onClick={() => setActiveStep(index)}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
     </LauncherShell>
   )
 }
