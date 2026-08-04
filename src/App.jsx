@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowRight,
@@ -12,6 +12,8 @@ import {
   Gauge,
   HelpCircle,
   Image,
+  Inbox,
+  Mail,
   MapPinned,
   Play,
   Radio,
@@ -486,10 +488,40 @@ function LauncherDemo() {
 
 function LauncherWorkshop() {
   const [mode, setMode] = useState('standby')
+  const [notificationVisible, setNotificationVisible] = useState(false)
+  const [controlsVisible, setControlsVisible] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    return searchParams.get('present') !== '1'
+  })
+  const requestTimerRef = useRef(null)
 
-  const showRequest = () => setMode('request')
-  const acceptJob = () => setMode('accepted')
-  const resetDemo = () => setMode('standby')
+  const clearRequestTimer = useCallback(() => {
+    if (!requestTimerRef.current) return
+    window.clearTimeout(requestTimerRef.current)
+    requestTimerRef.current = null
+  }, [])
+
+  const showRequest = useCallback(() => {
+    clearRequestTimer()
+    setNotificationVisible(true)
+    setMode('notifying')
+    requestTimerRef.current = window.setTimeout(() => {
+      setMode('request')
+      requestTimerRef.current = null
+    }, 850)
+  }, [clearRequestTimer])
+
+  const acceptJob = useCallback(() => {
+    clearRequestTimer()
+    setNotificationVisible(false)
+    setMode('accepted')
+  }, [clearRequestTimer])
+
+  const resetDemo = useCallback(() => {
+    clearRequestTimer()
+    setNotificationVisible(false)
+    setMode('standby')
+  }, [clearRequestTimer])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -499,11 +531,14 @@ function LauncherWorkshop() {
       }
       if (event.key.toLowerCase() === 'a') acceptJob()
       if (event.key.toLowerCase() === 'r') resetDemo()
+      if (event.key.toLowerCase() === 'h') setControlsVisible((visible) => !visible)
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [acceptJob, resetDemo, showRequest])
+
+  useEffect(() => () => clearRequestTimer(), [clearRequestTimer])
 
   return (
     <LauncherShell screen="workshop">
@@ -515,23 +550,71 @@ function LauncherWorkshop() {
           </div>
           <div className={`workshop-status-light ${mode}`}>
             <span />
-            {mode === 'accepted' ? 'Job accepted' : mode === 'request' ? 'New request' : 'Standby'}
+            {mode === 'accepted' ? 'Job accepted' : mode === 'request' || mode === 'notifying' ? 'New request' : 'Standby'}
           </div>
         </div>
 
-        <div className="workshop-grid">
+        {!controlsVisible ? (
+          <div className="presentation-mode-chip">Presentation Mode</div>
+        ) : null}
+
+        <AnimatePresence>
+          {notificationVisible ? (
+            <motion.div
+              className="workshop-notification"
+              initial={{ opacity: 0, y: -16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ duration: 0.24, ease: 'easeOut' }}
+            >
+              <div className="notification-icon"><Mail className="h-5 w-5" /></div>
+              <div>
+                <div className="notification-meta">
+                  <strong>NEW REQUEST</strong>
+                  <span>just now</span>
+                </div>
+                <h2>New production request received</h2>
+                <p>From: Materialize Routing Agent</p>
+                <p>Customer: Small gift brand</p>
+                <p>Product: Personalized wooden tags</p>
+                <p>Action required: Review production queue</p>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        <div className={`workshop-grid ${controlsVisible ? '' : 'presentation'}`}>
           <div className="workshop-console surface">
             {mode === 'standby' ? (
               <motion.div className="standby-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <Cpu className="h-16 w-16 text-amber-200" />
                 <h2>WORKSHOP NODE STANDBY</h2>
                 <p>Waiting for production requests...</p>
-                <strong>Machine queue: 3 active jobs</strong>
+                <div className="standby-inbox-card">
+                  <Inbox className="h-5 w-5 text-amber-200" />
+                  <span>
+                    <strong>Workshop inbox</strong>
+                    <em>No new requests</em>
+                    <small>Machine queue: 3 active jobs</small>
+                  </span>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {mode === 'notifying' ? (
+              <motion.div className="notification-hold-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Inbox className="h-14 w-14 text-amber-200" />
+                <h2>INBOX ALERT RECEIVED</h2>
+                <p>Materialize Routing Agent is opening the production request...</p>
               </motion.div>
             ) : null}
 
             {mode === 'request' ? (
               <motion.div className="request-alert-panel" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
+                <div className="inbox-received-chip">
+                  <Inbox className="h-4 w-4" />
+                  Inbox notification received
+                </div>
                 <div className="request-alert-title">
                   <Play className="h-8 w-8" />
                   <h2>NEW PRODUCTION REQUEST</h2>
@@ -582,17 +665,20 @@ function LauncherWorkshop() {
             ) : null}
           </div>
 
-          <aside className="workshop-side surface">
-            <h2>Demo controls</h2>
-            <button type="button" onClick={showRequest}><Play className="h-4 w-4" /> Show Request</button>
-            <button type="button" onClick={acceptJob}><CheckCircle2 className="h-4 w-4" /> Accept Job</button>
-            <button type="button" onClick={resetDemo}><RotateCcw className="h-4 w-4" /> Reset</button>
-            <div className="shortcut-list">
-              <span><kbd>Space</kbd> or <kbd>N</kbd> New request</span>
-              <span><kbd>A</kbd> Accept job</span>
-              <span><kbd>R</kbd> Reset demo</span>
-            </div>
-          </aside>
+          {controlsVisible ? (
+            <aside className="workshop-side surface">
+              <h2>Demo controls</h2>
+              <button type="button" onClick={showRequest}><Play className="h-4 w-4" /> Show Request</button>
+              <button type="button" onClick={acceptJob}><CheckCircle2 className="h-4 w-4" /> Accept Job</button>
+              <button type="button" onClick={resetDemo}><RotateCcw className="h-4 w-4" /> Reset</button>
+              <div className="shortcut-list">
+                <span><kbd>Space</kbd> or <kbd>N</kbd> New request</span>
+                <span><kbd>A</kbd> Accept job</span>
+                <span><kbd>R</kbd> Reset demo</span>
+                <span><kbd>H</kbd> Toggle controls</span>
+              </div>
+            </aside>
+          ) : null}
         </div>
       </section>
     </LauncherShell>
