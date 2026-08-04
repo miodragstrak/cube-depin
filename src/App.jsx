@@ -6,16 +6,25 @@ import {
   Box,
   CheckCircle2,
   CircleDollarSign,
+  ClipboardCheck,
+  Cpu,
+  Factory,
   Gauge,
+  HelpCircle,
   Image,
+  MapPinned,
+  Play,
   Radio,
+  RotateCcw,
   Ruler,
+  Send,
   Sparkles,
   SmartphoneNfc,
   Terminal,
   Timer,
   UploadCloud,
   Wallet,
+  XCircle,
 } from 'lucide-react'
 import materializeLogo from './assets/materialize-logo.jpg'
 import './App.css'
@@ -235,6 +244,361 @@ const analysisMessages = [
   'Inferring adaptive topology...',
 ]
 
+const launcherSteps = [
+  {
+    id: 'request',
+    label: 'Customer Request',
+    icon: Send,
+    kicker: 'Incoming customer request',
+    title: '30 personalized wooden tags',
+    body: 'Need 30 personalized wooden tags for a small gift brand. Wood material, around 5 cm, logo engraving, deadline next Friday.',
+  },
+  {
+    id: 'brief',
+    label: 'AI Brief',
+    icon: Sparkles,
+    kicker: 'AI-generated production brief',
+    title: 'Manufacturing intent structured',
+    brief: [
+      ['Product', 'Personalized wooden tags'],
+      ['Quantity', '30'],
+      ['Material', 'Wood'],
+      ['Process', 'Laser engraving / CNC compatible'],
+      ['Deadline', 'Next Friday'],
+      ['Quote needed', 'within 48h'],
+    ],
+  },
+  {
+    id: 'route',
+    label: 'Route Job',
+    icon: MapPinned,
+    kicker: 'Production graph routing',
+    title: 'Compatible nearby nodes found',
+  },
+  {
+    id: 'queue',
+    label: 'Workshop Queue',
+    icon: Factory,
+    kicker: 'Selected workshop queue',
+    title: 'CNC Axis-7 can reserve a slot',
+  },
+  {
+    id: 'accepted',
+    label: 'Accepted Status',
+    icon: ClipboardCheck,
+    kicker: 'Workshop accepted',
+    title: 'Customer notified: in production queue',
+  },
+  {
+    id: 'proof',
+    label: 'Proof-of-Make Preview',
+    icon: BadgeCheck,
+    kicker: 'Controlled proof preview',
+    title: 'Proof-of-Make package ready',
+  },
+]
+
+const launcherNodes = [
+  ['CNC Axis-7', 'compatible', '1.8 km', 'available'],
+  ['PrintCell M4', 'partially compatible', '0.7 km', 'review tooling'],
+  ['LaserForm 2X', 'compatible', '4.1 km', 'available'],
+]
+
+function LauncherShell({ children, screen }) {
+  return (
+    <main className="launcher-os min-h-screen bg-[#050712] text-slate-100">
+      <MachineNetworkBackground />
+      <div className="launcher-shell">
+        <nav className="launcher-topbar">
+          <a href="/" className="launcher-brand" aria-label="Materialize home">
+            <BrandMark />
+            <span>
+              <strong>Materialize</strong>
+              <em>Launcher Demo Day</em>
+            </span>
+          </a>
+          <div className="launcher-route-tabs">
+            <a className={screen === 'customer' ? 'active' : ''} href="/launcher-demo">Customer Flow</a>
+            <a className={screen === 'workshop' ? 'active' : ''} href="/launcher-workshop">Workshop Screen</a>
+          </div>
+        </nav>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+function LauncherDemo() {
+  const [activeStep, setActiveStep] = useState(0)
+  const currentStep = launcherSteps[activeStep]
+  const ActiveIcon = currentStep.icon
+  const progressWidth = `${((activeStep + 1) / launcherSteps.length) * 100}%`
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveStep((step) => (step >= launcherSteps.length - 1 ? step : step + 1))
+    }, 5200)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return (
+    <LauncherShell screen="customer">
+      <section className="launcher-hero">
+        <div>
+          <p className="section-kicker">Controlled customer simulation</p>
+          <h1>From request to accepted production queue.</h1>
+          <p className="section-copy">
+            A concise 45-60 second walkthrough for Demo Day: customer request, AI brief, routing, workshop acceptance, and proof preview.
+          </p>
+        </div>
+        <div className="launcher-live-pill">
+          <span />
+          Live mock sequence
+          <strong>{String(activeStep + 1).padStart(2, '0')} / 06</strong>
+        </div>
+      </section>
+
+      <div className="launcher-demo-grid">
+        <aside className="launcher-step-rail">
+          <div className="launcher-progress-track">
+            <motion.div animate={{ height: progressWidth }} transition={{ duration: 0.45, ease: 'easeOut' }} />
+          </div>
+          {launcherSteps.map((step, index) => {
+            const Icon = step.icon
+            return (
+              <button
+                key={step.id}
+                type="button"
+                className={`launcher-step-button ${index === activeStep ? 'active' : ''} ${index < activeStep ? 'complete' : ''}`}
+                onClick={() => setActiveStep(index)}
+              >
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <Icon className="h-4 w-4" />
+                <strong>{step.label}</strong>
+              </button>
+            )
+          })}
+        </aside>
+
+        <section className="launcher-stage surface">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep.id}
+              className="launcher-stage-card"
+              initial={{ opacity: 0, y: 24, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -18, filter: 'blur(10px)' }}
+              transition={{ duration: 0.34, ease: 'easeOut' }}
+            >
+              <div className="launcher-card-heading">
+                <div className="launcher-icon-orb"><ActiveIcon className="h-7 w-7" /></div>
+                <div>
+                  <p>{currentStep.kicker}</p>
+                  <h2>{currentStep.title}</h2>
+                </div>
+              </div>
+
+              {currentStep.id === 'request' ? (
+                <div className="customer-request-card">
+                  <p>{currentStep.body}</p>
+                  <div>
+                    <span>Gift brand</span>
+                    <span>Wood</span>
+                    <span>5 cm</span>
+                    <span>Logo engraving</span>
+                  </div>
+                </div>
+              ) : null}
+
+              {currentStep.id === 'brief' ? (
+                <div className="brief-grid">
+                  {currentStep.brief.map(([label, value]) => (
+                    <div key={label} className="brief-field">
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {currentStep.id === 'route' ? (
+                <div className="launcher-node-grid">
+                  {launcherNodes.map(([name, match, distance, status]) => (
+                    <div key={name} className={`launcher-node-card ${match === 'partially compatible' ? 'partial' : 'compatible'}`}>
+                      <span className="node-dot" />
+                      <strong>{name}</strong>
+                      <em>{match}</em>
+                      <div>
+                        <span>{distance}</span>
+                        <span>{status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {currentStep.id === 'queue' ? (
+                <div className="queue-card">
+                  <div>
+                    <Factory className="h-8 w-8 text-amber-200" />
+                    <span>Selected node</span>
+                    <strong>CNC Axis-7</strong>
+                  </div>
+                  <div className="queue-metrics">
+                    <span><em>Queue</em><strong>3 jobs ahead</strong></span>
+                    <span><em>Estimated slot</em><strong>Friday 16:00</strong></span>
+                    <span><em>Routing status</em><strong>Awaiting workshop accept</strong></span>
+                  </div>
+                </div>
+              ) : null}
+
+              {currentStep.id === 'accepted' ? (
+                <div className="accepted-card">
+                  <CheckCircle2 className="h-14 w-14 text-amber-200" />
+                  <h3>Accepted / In Queue</h3>
+                  <p>Workshop accepted the request. Customer quote window remains within 48h.</p>
+                  <strong>Production slot reserved: Friday, 16:00</strong>
+                </div>
+              ) : null}
+
+              {currentStep.id === 'proof' ? (
+                <div className="proof-preview-card">
+                  <div className="wood-tag-preview">
+                    <span>MG</span>
+                    <em>small gift brand</em>
+                  </div>
+                  <div className="proof-preview-fields">
+                    <span><em>Proof type</em><strong>Proof-of-Make preview</strong></span>
+                    <span><em>Node</em><strong>CNC Axis-7</strong></span>
+                    <span><em>Batch</em><strong>30 wooden tags</strong></span>
+                    <span><em>Status</em><strong>Ready for production</strong></span>
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
+          </AnimatePresence>
+        </section>
+      </div>
+    </LauncherShell>
+  )
+}
+
+function LauncherWorkshop() {
+  const [mode, setMode] = useState('standby')
+
+  const showRequest = () => setMode('request')
+  const acceptJob = () => setMode('accepted')
+  const resetDemo = () => setMode('standby')
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.code === 'Space' || event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        showRequest()
+      }
+      if (event.key.toLowerCase() === 'a') acceptJob()
+      if (event.key.toLowerCase() === 'r') resetDemo()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  return (
+    <LauncherShell screen="workshop">
+      <section className="workshop-screen">
+        <div className="workshop-header">
+          <div>
+            <p className="section-kicker">Nenad's laptop screen</p>
+            <h1>WORKSHOP NODE STANDBY</h1>
+          </div>
+          <div className={`workshop-status-light ${mode}`}>
+            <span />
+            {mode === 'accepted' ? 'Job accepted' : mode === 'request' ? 'New request' : 'Standby'}
+          </div>
+        </div>
+
+        <div className="workshop-grid">
+          <div className="workshop-console surface">
+            {mode === 'standby' ? (
+              <motion.div className="standby-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Cpu className="h-16 w-16 text-amber-200" />
+                <h2>WORKSHOP NODE STANDBY</h2>
+                <p>Waiting for production requests...</p>
+                <strong>Machine queue: 3 active jobs</strong>
+              </motion.div>
+            ) : null}
+
+            {mode === 'request' ? (
+              <motion.div className="request-alert-panel" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
+                <div className="request-alert-title">
+                  <Play className="h-8 w-8" />
+                  <h2>NEW PRODUCTION REQUEST</h2>
+                </div>
+                <div className="workshop-request-grid">
+                  {[
+                    ['Product', 'Personalized wooden tags'],
+                    ['Quantity', '30'],
+                    ['Material', 'Wood'],
+                    ['Process', 'Laser / CNC engraving'],
+                    ['Customer deadline', 'Next Friday'],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="queue-list">
+                  <h3>Current queue</h3>
+                  <p>Job #1 finishing today</p>
+                  <p>Job #2 scheduled tomorrow</p>
+                  <p>Job #3 scheduled Thursday</p>
+                </div>
+                <div className="recommendation-box">
+                  <Sparkles className="h-5 w-5 text-amber-200" />
+                  <span>
+                    <strong>Materialize recommendation</strong>
+                    This job can be completed by Friday, 16:00.
+                  </span>
+                </div>
+                <div className="workshop-action-row">
+                  <button type="button" className="brand-button" onClick={acceptJob}>ACCEPT JOB</button>
+                  <button type="button"><HelpCircle className="h-4 w-4" /> ASK QUESTION</button>
+                  <button type="button"><XCircle className="h-4 w-4" /> DECLINE</button>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {mode === 'accepted' ? (
+              <motion.div className="job-accepted-panel" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+                <CheckCircle2 className="h-20 w-20 text-amber-200" />
+                <h2>JOB ACCEPTED</h2>
+                <p>Customer notified.</p>
+                <strong>Production slot reserved: Friday, 16:00.</strong>
+                <span>Status: In production queue.</span>
+              </motion.div>
+            ) : null}
+          </div>
+
+          <aside className="workshop-side surface">
+            <h2>Demo controls</h2>
+            <button type="button" onClick={showRequest}><Play className="h-4 w-4" /> Show Request</button>
+            <button type="button" onClick={acceptJob}><CheckCircle2 className="h-4 w-4" /> Accept Job</button>
+            <button type="button" onClick={resetDemo}><RotateCcw className="h-4 w-4" /> Reset</button>
+            <div className="shortcut-list">
+              <span><kbd>Space</kbd> or <kbd>N</kbd> New request</span>
+              <span><kbd>A</kbd> Accept job</span>
+              <span><kbd>R</kbd> Reset demo</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </LauncherShell>
+  )
+}
+
 function BrandMark({ className = '' }) {
   return (
     <span className={`brand-mark ${className}`}>
@@ -384,7 +748,7 @@ function ProductVisual({ product }) {
   )
 }
 
-function App() {
+function MaterializeApp() {
   const [selectedProduct, setSelectedProduct] = useState(products[0])
   const [selectedMachine, setSelectedMachine] = useState(machines[0])
   const [wallet, setWallet] = useState(null)
@@ -1306,6 +1670,22 @@ function App() {
       ) : null}
     </main>
   )
+}
+
+function App() {
+  const [pathname, setPathname] = useState(() => window.location.pathname)
+
+  useEffect(() => {
+    const handleLocationChange = () => setPathname(window.location.pathname)
+
+    window.addEventListener('popstate', handleLocationChange)
+    return () => window.removeEventListener('popstate', handleLocationChange)
+  }, [])
+
+  if (pathname === '/launcher-demo') return <LauncherDemo />
+  if (pathname === '/launcher-workshop') return <LauncherWorkshop />
+
+  return <MaterializeApp />
 }
 
 export default App
