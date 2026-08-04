@@ -245,7 +245,7 @@ const analysisMessages = [
 
 const launcherSteps = [
   ['upload', 'Upload Request'],
-  ['preview', 'Uploaded Image Preview'],
+  ['preview', 'Production proposal'],
   ['brief', 'Request Sent / AI Brief'],
   ['waiting', 'Waiting for Workshop'],
   ['accepted', 'Job Accepted / Quote Received'],
@@ -278,6 +278,7 @@ function LauncherShell({ children, screen }) {
 function LauncherDemo() {
   const [activeStep, setActiveStep] = useState(0)
   const [offerDeclined, setOfferDeclined] = useState(false)
+  const [productPreviewReady, setProductPreviewReady] = useState(true)
   const [currentStepId, currentStepLabel] = launcherSteps[activeStep]
   const requestDescription = 'Drveni privezak prečnika 5 cm, sa Materialize logom.'
   const stepCount = launcherSteps.length
@@ -361,28 +362,18 @@ function LauncherDemo() {
 
               {currentStepId === 'preview' ? (
                 <>
-                  <h2>Uploaded Image Preview</h2>
+                  <h2>Product concept prepared</h2>
+                  <p className="mobile-support-copy">Materialize interpreted your uploaded logo and request as a wooden pendant / keychain.</p>
                   <div className="mobile-preview-card">
-                    <p>Wooden engraving preview</p>
-                    <div className="engraving-preview-wrap">
-                      <div className="engraved-pendant" aria-label="Engraving-style Materialize logo preview">
-                        <span className="pendant-hole" />
-                        <div className="engraved-cube">
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                        <strong>Materialize</strong>
-                        <em>demo sample</em>
-                      </div>
-                    </div>
-                    <div className="engraving-preview-note">
-                      <strong>Uploaded logo → engraving-ready design</strong>
-                      <em>{requestDescription}</em>
+                    <p>Uploaded design: Materialize logo</p>
+                    <div className="uploaded-logo-preview">
+                      <img src={materializeLogo} alt="Materialize logo uploaded design preview" />
                     </div>
                   </div>
                   <div className="mobile-info-stack">
-                    <span><em>Estimated product type</em><strong>Wooden pendant / keychain</strong></span>
+                    <span><em>Product</em><strong>Wooden pendant / keychain</strong></span>
+                    <span><em>Diameter</em><strong>5 cm</strong></span>
+                    <span><em>Material</em><strong>Wood</strong></span>
                     <span><em>Suggested process</em><strong>Laser engraving / CNC cutting</strong></span>
                   </div>
                   <button type="button" className="mobile-primary-action" onClick={goNext}>
@@ -396,6 +387,19 @@ function LauncherDemo() {
                 <>
                   <h2>Request sent for processing</h2>
                   <p className="mobile-support-copy">Materialize is converting your request into a production brief.</p>
+                  <div className="ai-product-preview-card">
+                    <span>Proposed product preview</span>
+                    {productPreviewReady ? (
+                      <img
+                        src="/launcher-demo/wooden-pendant-preview.png"
+                        alt="Round wooden Materialize pendant product preview"
+                        onError={() => setProductPreviewReady(false)}
+                      />
+                    ) : (
+                      <div className="ai-product-preview-placeholder">Product preview pending</div>
+                    )}
+                    <p>Generated from uploaded logo and product description.</p>
+                  </div>
                   <div className="mobile-brief-card">
                     {[
                       ['Product', 'Wooden pendant'],

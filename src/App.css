@@ -4242,6 +4242,7 @@ button.production-path-card {
 .mobile-preview-card,
 .mobile-field,
 .mobile-info-stack span,
+.ai-product-preview-card,
 .mobile-brief-card,
 .mobile-check-card,
 .mobile-timeline,
@@ -4360,6 +4361,30 @@ button.production-path-card {
     linear-gradient(135deg, rgba(248, 184, 78, 0.08), rgba(255, 255, 255, 0.03)),
     rgba(255, 255, 255, 0.035);
   padding: 18px 10px;
+}
+
+.uploaded-logo-preview {
+  display: grid;
+  width: 100%;
+  min-height: 178px;
+  place-items: center;
+  border: 1px solid rgba(248, 184, 78, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(248, 184, 78, 0.08), rgba(139, 92, 246, 0.08)),
+    rgba(255, 255, 255, 0.035);
+  padding: 18px;
+}
+
+.uploaded-logo-preview img {
+  height: 138px;
+  width: 138px;
+  border: 1px solid rgba(248, 184, 78, 0.24);
+  border-radius: 8px;
+  background: #100622;
+  object-fit: contain;
+  padding: 14px;
+  box-shadow: 0 0 28px rgba(248, 184, 78, 0.12);
 }
 
 .engraved-pendant {
@@ -4555,6 +4580,53 @@ button.production-path-card {
   margin: 0;
   color: #c4b5fd;
   line-height: 1.45;
+}
+
+.ai-product-preview-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.ai-product-preview-card > span {
+  color: #fde68a;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ai-product-preview-card img,
+.ai-product-preview-placeholder {
+  width: 100%;
+  min-height: 164px;
+  border: 1px solid rgba(248, 184, 78, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(248, 184, 78, 0.08), rgba(139, 92, 246, 0.08)),
+    rgba(255, 255, 255, 0.035);
+}
+
+.ai-product-preview-card img {
+  display: block;
+  max-height: 220px;
+  object-fit: contain;
+  padding: 8px;
+}
+
+.ai-product-preview-placeholder {
+  display: grid;
+  place-items: center;
+  color: #c4b5fd;
+  font-weight: 850;
+  text-align: center;
+}
+
+.ai-product-preview-card p {
+  margin: 0;
+  color: #c4b5fd;
+  font-size: 0.86rem;
+  line-height: 1.35;
 }
 
 .mobile-brief-card,
