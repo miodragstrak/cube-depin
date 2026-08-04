@@ -454,23 +454,23 @@ function LauncherDemo() {
                   <div className="mobile-success-mark">
                     <CheckCircle2 className="h-8 w-8" />
                   </div>
-                  <h2>Job accepted</h2>
-                  <p className="mobile-support-copy">CNC Axis-7 accepted your request.</p>
+                  <h2>Production slot reserved</h2>
+                  <p className="mobile-support-copy">CNC Axis-7 reviewed your request and reserved a production slot.</p>
                   <div className="mobile-offer-card">
                     <span><em>Estimated price</em><strong>1.500 RSD</strong></span>
                     <span><em>Pickup</em><strong>Naučno-tehnološki park Niš</strong></span>
                     <span><em>Estimated time</em><strong>Today, 16:00</strong></span>
                     <span><em>Offer valid until</em><strong>Today, 14:30</strong></span>
-                    <span><em>Status</em><strong>Your job is now in production queue.</strong></span>
-                    <p>Accept within 30 minutes to keep the scheduled pickup time.</p>
+                    <span><em>Status</em><strong>Waiting for your confirmation.</strong></span>
+                    <p>Confirm within 30 minutes to keep the scheduled pickup time.</p>
                   </div>
                   <div className="mobile-offer-actions">
-                    <button type="button" className="mobile-primary-action">Accept offer</button>
-                    <button type="button" className="mobile-secondary-action" onClick={() => setOfferDeclined(true)}>Decline offer</button>
+                    <button type="button" className="mobile-primary-action">Confirm order</button>
+                    <button type="button" className="mobile-secondary-action" onClick={() => setOfferDeclined(true)}>Find another workshop</button>
                   </div>
                   {offerDeclined ? (
                     <div className="mobile-decline-message">
-                      Offer declined. Materialize can route the request to another workshop.
+                      Materialize can route your request to another compatible workshop.
                     </div>
                   ) : null}
                 </>
