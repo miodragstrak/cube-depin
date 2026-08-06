@@ -248,7 +248,8 @@ const launcherSteps = [
   ['preview', 'Production proposal'],
   ['brief', 'Request Sent / AI Brief'],
   ['waiting', 'Waiting for Workshop'],
-  ['accepted', 'Job Accepted / Quote Received'],
+  ['offers', 'Offers received'],
+  ['selected', 'Offer selected'],
 ]
 
 function LauncherShell({ children, screen }) {
@@ -278,6 +279,7 @@ function LauncherShell({ children, screen }) {
 function LauncherDemo() {
   const [activeStep, setActiveStep] = useState(0)
   const [offerDeclined, setOfferDeclined] = useState(false)
+  const [offersRejected, setOffersRejected] = useState(false)
   const [productPreviewReady, setProductPreviewReady] = useState(true)
   const [currentStepId, currentStepLabel] = launcherSteps[activeStep]
   const requestDescription = 'Drveni privezak prečnika 5 cm, sa Materialize logom.'
@@ -290,6 +292,13 @@ function LauncherDemo() {
   const resetDemo = () => {
     setActiveStep(0)
     setOfferDeclined(false)
+    setOffersRejected(false)
+  }
+
+  const selectCncOffer = () => {
+    setOffersRejected(false)
+    setOfferDeclined(false)
+    setActiveStep(stepCount - 1)
   }
 
   return (
@@ -322,6 +331,7 @@ function LauncherDemo() {
                   onClick={() => {
                     setActiveStep(index)
                     if (index !== stepCount - 1) setOfferDeclined(false)
+                    if (id !== 'offers') setOffersRejected(false)
                   }}
                 />
               ))}
@@ -447,26 +457,64 @@ function LauncherDemo() {
                     ))}
                   </div>
                   <button type="button" className="mobile-primary-action" onClick={goNext}>
-                    Show accepted offer
+                    Show offers
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </>
               ) : null}
 
-              {currentStepId === 'accepted' ? (
+              {currentStepId === 'offers' ? (
+                <>
+                  <h2>Offers received</h2>
+                  <p className="mobile-support-copy">Materialize matched your request with available local workshops.</p>
+                  <div className="mobile-offers-list">
+                    {[
+                      ['CNC Axis-7', '1.500 RSD', 'Today, 16:00', 'Today, 14:30', 'Available production slot', true],
+                      ['Laser Studio Niš', '1.800 RSD', 'Tomorrow, 11:00', 'Today, 18:00', 'Available', false],
+                      ['Maker Workshop', '1.300 RSD', 'Tomorrow, 15:00', 'Today, 17:00', 'Longer production queue', false],
+                    ].map(([workshop, price, readyBy, validUntil, status, primary]) => (
+                      <div key={workshop} className={`mobile-workshop-offer ${primary ? 'featured' : ''}`}>
+                        <div className="mobile-offer-heading">
+                          <strong>{workshop}</strong>
+                          <em>{status}</em>
+                        </div>
+                        <div className="mobile-offer-details">
+                          <span><em>Price</em><strong>{price}</strong></span>
+                          <span><em>Ready by</em><strong>{readyBy}</strong></span>
+                          <span><em>Offer valid until</em><strong>{validUntil}</strong></span>
+                        </div>
+                        {primary ? (
+                          <button type="button" className="mobile-primary-action" onClick={selectCncOffer}>Select offer</button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="mobile-secondary-action" onClick={() => setOffersRejected(true)}>Reject all offers</button>
+                  {offersRejected ? (
+                    <div className="mobile-decline-message">
+                      All current offers were declined. Materialize can search for additional compatible workshops.
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+
+              {currentStepId === 'selected' ? (
                 <>
                   <div className="mobile-success-mark">
                     <CheckCircle2 className="h-8 w-8" />
                   </div>
-                  <h2>Production slot reserved</h2>
-                  <p className="mobile-support-copy">CNC Axis-7 reviewed your request and reserved a production slot.</p>
+                  <h2>Offer selected</h2>
+                  <p className="mobile-support-copy">You selected CNC Axis-7. Confirm your order to reserve this production slot.</p>
                   <div className="mobile-offer-card">
                     <span><em>Estimated price</em><strong>1.500 RSD</strong></span>
                     <span><em>Pickup</em><strong>Naučno-tehnološki park Niš</strong></span>
-                    <span><em>Estimated time</em><strong>Today, 16:00</strong></span>
+                    <span><em>Ready by</em><strong>Today, 16:00</strong></span>
                     <span><em>Offer valid until</em><strong>Today, 14:30</strong></span>
                     <span><em>Status</em><strong>Waiting for your confirmation.</strong></span>
                     <p>Confirm within 30 minutes to keep the scheduled pickup time.</p>
+                  </div>
+                  <div className="mobile-system-note">
+                    Other workshops will be notified if this offer is confirmed.
                   </div>
                   <div className="mobile-offer-actions">
                     <button type="button" className="mobile-primary-action">Confirm order</button>
