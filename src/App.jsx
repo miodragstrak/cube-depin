@@ -246,7 +246,7 @@ const analysisMessages = [
 const launcherSteps = [
   ['upload', 'Upload Request'],
   ['preview', 'Production proposal'],
-  ['brief', 'Request Sent / AI Brief'],
+  ['brief', 'Production specification'],
   ['waiting', 'Waiting for Workshop'],
   ['offers', 'Offers received'],
   ['selected', 'Offer selected'],
@@ -387,7 +387,7 @@ function LauncherDemo() {
                     <span><em>Suggested process</em><strong>Laser engraving / CNC cutting</strong></span>
                   </div>
                   <button type="button" className="mobile-primary-action" onClick={goNext}>
-                    Generate production brief
+                    Generate specification
                     <Sparkles className="h-4 w-4" />
                   </button>
                 </>
@@ -395,8 +395,8 @@ function LauncherDemo() {
 
               {currentStepId === 'brief' ? (
                 <>
-                  <h2>Request sent for processing</h2>
-                  <p className="mobile-support-copy">Materialize is converting your request into a production brief.</p>
+                  <h2>Production specification created</h2>
+                  <p className="mobile-support-copy">Materialize converted your request into a clear production specification.</p>
                   <div className="ai-product-preview-card">
                     <span>Proposed product preview</span>
                     {productPreviewReady ? (
@@ -424,7 +424,7 @@ function LauncherDemo() {
                   </div>
                   <div className="mobile-status-line">
                     <span />
-                    Finding compatible workshop node...
+                    Finding compatible production partner...
                   </div>
                   <button type="button" className="mobile-primary-action" onClick={goNext}>
                     Route to workshop
